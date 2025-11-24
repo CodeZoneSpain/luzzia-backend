@@ -8,11 +8,7 @@ export class CorsConfigService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  /**
-   * Genera la configuración CORS basada en las variables de entorno
-   * @returns CorsOptions configuradas
-   */
-  getCorsOptions(): CorsOptions {
+   getCorsOptions(): CorsOptions {
     const allowedOrigins = this.configService.get<string[]>('allowedOrigins');
     const isDevelopment = process.env.NODE_ENV === 'development';
 
@@ -31,12 +27,7 @@ export class CorsConfigService {
     };
   }
 
-  /**
-   * Crea el handler para validar origins
-   * @param allowedOrigins Array de origins permitidos
-   * @param isDevelopment Si está en modo desarrollo
-   * @returns Function para validar origins
-   */
+ 
   private createOriginHandler(
     allowedOrigins: string[],
     isDevelopment: boolean,
@@ -66,9 +57,7 @@ export class CorsConfigService {
     };
   }
 
-  /**
-   * Registra información sobre la configuración CORS
-   */
+   
   logCorsConfiguration(): void {
     const allowedOrigins = this.configService.get<string[]>('allowedOrigins');
     const isDevelopment = process.env.NODE_ENV === 'development';

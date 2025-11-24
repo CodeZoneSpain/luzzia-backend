@@ -20,6 +20,7 @@ import {
   RecommendationDto,
 } from './dto/recommendations.dto';
 import { DailyAverageDto } from './dto/daily-averages.dto';
+import { WeeklyDailyAveragesResponseDto } from './dto/weekly-daily-averages-response.dto';
 
 interface PvpcEntry {
   date: string; // fecha en formato YYYY-MM-DD
@@ -84,7 +85,7 @@ export class PricesService {
     private readonly configService: ConfigService,
     private readonly priceRepository: PriceRepository,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  ) {}
+  ) { }
 
   private transformREEData(reeData: any): CreatePriceDto[] {
     if (!reeData?.PVPC) {
@@ -384,7 +385,7 @@ export class PricesService {
 
     return stats;
   }
- 
+
   async getRecommendations(): Promise<RecommendationsResponseDto> {
     const todayPrices = await this.getTodayPrices();
 
@@ -500,9 +501,82 @@ export class PricesService {
         day,
         month,
         year,
-        avgPrice: stat ? stat.avgPrice : 0
+        avgPrice: stat ? stat.avgPrice : 0,
       });
     }
+    return result;
+  }
+
+  async getWeeklyDailyAverages(
+    dateStr?: string,
+  ): Promise<WeeklyDailyAveragesResponseDto[]> {
+    let targetDate: Date;
+
+    if (dateStr) {
+      targetDate = new Date(dateStr);
+    } else {
+      const now = new Date();
+      targetDate = new Date(
+        Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()),
+      );
+    }
+
+    if (isNaN(targetDate.getTime())) {
+      throw new Error('Invalid date format');
+    }
+
+    const dayOfWeek = targetDate.getUTCDay();
+    const diffToMonday = (dayOfWeek + 6) % 7;
+
+    const monday = new Date(targetDate);
+    monday.setUTCDate(targetDate.getUTCDate() - diffToMonday);
+
+    const nextDay = new Date(targetDate);
+    nextDay.setUTCDate(targetDate.getUTCDate() + 1);
+
+    const stats = await this.priceModel.aggregate([
+      {
+        $match: {
+          date: {
+            $gte: monday,
+            $lt: nextDay,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+          avgPrice: { $avg: '$price' },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const daysInSpanish = [
+      'Domingo',
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+    ];
+    const result: WeeklyDailyAveragesResponseDto[] = [];
+
+    const iter = new Date(monday);
+    while (iter < nextDay) {
+      const dateString = iter.toISOString().split('T')[0];
+      const stat = stats.find((s) => s._id === dateString);
+
+      result.push({
+        fecha: dateString,
+        dia: daysInSpanish[iter.getUTCDay()],
+        promedio: stat ? parseFloat(stat.avgPrice.toFixed(5)) : 0,
+      });
+
+      iter.setUTCDate(iter.getUTCDate() + 1);
+    }
+
     return result;
   }
 }

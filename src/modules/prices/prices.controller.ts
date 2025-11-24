@@ -16,6 +16,8 @@ import { RecommendationsResponseDto } from './dto/recommendations.dto';
 import { PricesCron } from '../../shared/cron/prices.cron';
 import { DailyAverageDto } from './dto/daily-averages.dto';
 import { DailyAveragesQueryDto } from './dto/daily-averages-query.dto';
+import { WeeklyDailyAveragesQueryDto } from './dto/weekly-daily-averages-query.dto';
+import { WeeklyDailyAveragesResponseDto } from './dto/weekly-daily-averages-response.dto';
 
 @ApiTags('Prices')
 @Controller('prices')
@@ -36,7 +38,7 @@ export class PricesController {
   constructor(
     private readonly pricesService: PricesService,
     private readonly pricesCron: PricesCron,
-  ) {}
+  ) { }
 
   @Get('today')
   @ApiOperation({ summary: 'Obtener precios del día actual' })
@@ -168,5 +170,16 @@ export class PricesController {
     const month = query.month ?? now.getMonth() + 1;
     const year = query.year ?? now.getFullYear();
     return this.pricesService.getDailyAverages(month, year);
+  }
+
+  @Get('weekly-daily-averages')
+  @ApiOperation({
+    summary: 'Obtener promedio diario de la semana hasta la fecha indicada',
+  })
+  @ApiResponse({ status: 200, type: [WeeklyDailyAveragesResponseDto] })
+  async getWeeklyDailyAverages(
+    @Query() query: WeeklyDailyAveragesQueryDto,
+  ): Promise<WeeklyDailyAveragesResponseDto[]> {
+    return this.pricesService.getWeeklyDailyAverages(query.date);
   }
 }
