@@ -569,9 +569,9 @@ export class PricesService {
       const stat = stats.find((s) => s._id === dateString);
 
       result.push({
-        fecha: dateString,
-        dia: daysInSpanish[iter.getUTCDay()],
-        promedio: stat ? parseFloat(stat.avgPrice.toFixed(5)) : 0,
+        date: dateString,
+        day: daysInSpanish[iter.getUTCDay()],
+        averageDay: stat ? parseFloat(stat.avgPrice.toFixed(5)) : 0,
       });
 
       iter.setUTCDate(iter.getUTCDate() + 1);
