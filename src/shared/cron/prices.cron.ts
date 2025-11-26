@@ -36,7 +36,6 @@ export class PricesCron {
     this.logger.log(`🌍 Madrid time: ${new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}`);
 
     try {
-      // Cron job principal usando la variable de entorno
       const mainCronJob = new CronJob(
         cronSchedule,
         () => this.handleDailyPriceUpdate(),
@@ -45,18 +44,16 @@ export class PricesCron {
         timeZone,
       );
 
-      // Cron job de reintento a las 23:15
       const retryCronJob = new CronJob(
-        '15 23 * * *',
+        this.configService.get<string>('cron.retrySchedule' ) || '15 23 * * *',
         () => this.handleRetryPriceUpdate(),
         null,
         true,
         timeZone,
       );
 
-      // Cron job de reset diario a medianoche
       const resetCronJob = new CronJob(
-        '0 0 * * *',
+        this.configService.get<string>('cron.resetSchedule') || '0 0 * * 0',
         () => this.resetDailyFlag(),
         null,
         true,
@@ -65,18 +62,30 @@ export class PricesCron {
 
       // Cron job de verificación cada 6 horas (backup automático)
       const backupCronJob = new CronJob(
-        '0 */6 * * *', // Cada 6 horas
+        this.configService.get<string>('cron.backupSchedule') || '0 */6 * * *', // Cada 6 horas
         () => this.handleBackupCheck(),
         null,
         true,
         timeZone,
       );
 
-      // Registrar los cron jobs
-      this.schedulerRegistry.addCronJob('mainPriceUpdate', mainCronJob);
-      this.schedulerRegistry.addCronJob('retryPriceUpdate', retryCronJob);
-      this.schedulerRegistry.addCronJob('resetDailyFlag', resetCronJob);
-      this.schedulerRegistry.addCronJob('backupCheck', backupCronJob);
+     const registerCronJob = (name: string, job: CronJob) => {
+        try {
+          const existing = this.schedulerRegistry.getCronJob(name);
+          if (existing) {
+            this.schedulerRegistry.deleteCronJob(name);
+            this.logger.log(`🔁 Existing cron job '${name}' removed before re-registering`);
+          }
+        } catch (e) {
+          // getCronJob lanza si no existe; en ese caso continuamos
+        }
+        this.schedulerRegistry.addCronJob(name, job);
+      };
+
+      registerCronJob('mainPriceUpdate', mainCronJob);
+      registerCronJob('retryPriceUpdate', retryCronJob);
+      registerCronJob('resetDailyFlag', resetCronJob);
+      registerCronJob('backupCheck', backupCronJob);
 
       this.cronStatus = 'active';
       this.logger.log(`✅ CRON jobs registered successfully`);
