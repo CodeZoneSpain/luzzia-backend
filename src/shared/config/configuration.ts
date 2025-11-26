@@ -20,6 +20,8 @@ export const validationSchema = Joi.object({
   // Configuración de cron
   CRON_SCHEDULE: Joi.string().default('15 20 * * *'),
   CRON_RETRY_SCHEDULE: Joi.string().default('15 23 * * *'),
+  CRON_RESET_SCHEDULE: Joi.string().default('0 0 * * 0'),
+  CRON_BACKUP_SCHEDULE: Joi.string().default('0 */6 * * *'),
   FALLBACK_RETRY_DELAY: Joi.number().default(30),
   MAX_RETRIES: Joi.number().default(3),
   TZ: Joi.string().default('Europe/Madrid'),
@@ -58,6 +60,8 @@ export default () => ({
   cron: {
     mainSchedule: process.env.CRON_SCHEDULE || '15 20 * * *',
     retrySchedule: process.env.CRON_RETRY_SCHEDULE || '15 23 * * *',
+    resetSchedule: process.env.CRON_RESET_SCHEDULE || '0 0 * * 0',
+    backupSchedule: process.env.CRON_BACKUP_SCHEDULE || '0 */6 * * *',
     timezone: process.env.TZ || 'Europe/Madrid',
   },
 
@@ -65,10 +69,10 @@ export default () => ({
   allowedOrigins: process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
     : [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'https://luzzia-backend-production.up.railway.app',
-      ],
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://luzzia-backend-production.up.railway.app',
+    ],
   maxRetries: parseInt(process.env.MAX_RETRIES, 10) || 3,
 
   cache: {
