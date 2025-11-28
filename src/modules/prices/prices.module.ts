@@ -5,7 +5,8 @@ import { PricesService } from './prices.service';
 import { PricesController } from './prices.controller';
 import { Price, PriceSchema } from './entities/price.entity';
 import { PriceRepository } from './repositories/price.repository';
-import { PricesCron } from '../../shared/cron/prices.cron';
+import { PricesCron } from './cron/prices.cron';
+import { ReeApiProvider } from './providers/ree-api.provider';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { PricesCron } from '../../shared/cron/prices.cron';
     HttpModule,
   ],
   controllers: [PricesController],
-  providers: [PricesService, PriceRepository, PricesCron],
+  providers: [PricesService, PriceRepository, PricesCron, ReeApiProvider],
   exports: [PricesService, PriceRepository, PricesCron],
 })
-export class PricesModule {}
+export class PricesModule { }

@@ -1,5 +1,5 @@
-import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger, Inject } from '@nestjs/common';
+import { ReeApiProvider } from './providers/ree-api.provider';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Price } from './entities/price.entity';
@@ -7,7 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { Model } from 'mongoose';
 import { CreatePriceDto } from './dto/create-price.dto';
-import { catchError, firstValueFrom } from 'rxjs';
+
 import { PriceResponseDto } from './dto/response-price.dto';
 import { PriceRepository } from './repositories/price.repository';
 import { DashboardStatsDto } from './dto/dashboard-stats.dto';
@@ -34,6 +34,17 @@ export interface REEApiResponse {
 
 @Injectable()
 export class PricesService {
+
+  private readonly logger = new Logger(PricesService.name);
+
+  constructor(
+    @InjectModel(Price.name) private priceModel: Model<Price>,
+    private readonly reeApiProvider: ReeApiProvider,
+    private readonly configService: ConfigService,
+    private readonly priceRepository: PriceRepository,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) { }
+
   async getMonthlyAverages(): Promise<{ month: number; avgPrice: number }[]> {
     const currentYear = new Date().getFullYear();
     const stats = await this.priceModel.aggregate([
@@ -77,65 +88,9 @@ export class PricesService {
     ]);
     return stats.map(s => ({ week: s._id, avgPrice: s.avgPrice }));
   }
-  private readonly logger = new Logger(PricesService.name);
-
-  constructor(
-    @InjectModel(Price.name) private priceModel: Model<Price>,
-    private readonly httpService: HttpService,
-    private readonly configService: ConfigService,
-    private readonly priceRepository: PriceRepository,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  ) { }
-
-  private transformREEData(reeData: any): CreatePriceDto[] {
-    if (!reeData?.PVPC) {
-      throw new Error('Inválido formato de datos de API REE');
-    }
-
-    const convertDate = (dateStr: string): Date => {
-      const [dd, mm, yyyy] = dateStr.split('/');
-      return new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`); // Crear objeto Date
-    };
-
-    const transformedData = reeData.PVPC.map((item: any) => {
-      const date = convertDate(item.Dia);
-      const hour = parseInt(item.Hora.split('-')[0], 10);
-
-      const num = parseFloat(item.PCB.replace(',', '.'));
-      const price = parseFloat((num / 1000).toFixed(5)); // Convertir a €/kWh
-
-      if (!date || isNaN(hour) || isNaN(price)) {
-        this.logger.warn(`Formato de datos inválido: ${JSON.stringify(item)}`);
-        return null;
-      }
-
-      return { date, hour, price };
-    }).filter(Boolean);
-
-    return transformedData;
-  }
 
   async fetchFromExternalApi(): Promise<CreatePriceDto[]> {
-    const apiUrl =
-      this.configService.get<string>('apis.ree.url') ||
-      this.configService.get<string>('reeApiUrl');
-
-    if (!apiUrl) {
-      throw new Error('REE API URL not configured');
-    }
-
-    this.logger.log(`Fetching de precios desde API externa: ${apiUrl}`);
-
-    const { data } = await firstValueFrom(
-      this.httpService.get(apiUrl).pipe(
-        catchError((error) => {
-          this.logger.error('Error fetching from REE API', error.stack);
-          throw new Error(`REE API error: ${error.message}`);
-        }),
-      ),
-    );
-
-    return this.transformREEData(data);
+    return this.reeApiProvider.fetchPriceData();
   }
 
   async savePrices(prices: CreatePriceDto[]): Promise<number> {
@@ -531,15 +486,15 @@ export class PricesService {
     const monday = new Date(targetDate);
     monday.setUTCDate(targetDate.getUTCDate() - diffToMonday);
 
-    const nextDay = new Date(targetDate);
-    nextDay.setUTCDate(targetDate.getUTCDate() + 1);
+    const sunday = new Date(targetDate);
+    sunday.setUTCDate(monday.getUTCDate() + 7);
 
     const stats = await this.priceModel.aggregate([
       {
         $match: {
           date: {
             $gte: monday,
-            $lt: nextDay,
+            $lt: sunday,
           },
         },
       },
@@ -564,14 +519,15 @@ export class PricesService {
     const result: WeeklyDailyAveragesResponseDto[] = [];
 
     const iter = new Date(monday);
-    while (iter < nextDay) {
+
+    while (iter < sunday) {
       const dateString = iter.toISOString().split('T')[0];
       const stat = stats.find((s) => s._id === dateString);
 
       result.push({
         date: dateString,
         day: daysInSpanish[iter.getUTCDay()],
-        averageDay: stat ? parseFloat(stat.avgPrice.toFixed(5)) : 0,
+        averageDay: stat ? parseFloat(stat.avgPrice.toFixed(6)) : 0,
       });
 
       iter.setUTCDate(iter.getUTCDate() + 1);

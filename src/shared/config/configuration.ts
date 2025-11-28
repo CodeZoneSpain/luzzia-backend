@@ -71,6 +71,7 @@ export default () => ({
     : [
       'http://localhost:3000',
       'http://localhost:3001',
+      'https://luzzia-backend-ep8s.onrender.com',
       'https://luzzia-backend-production.up.railway.app',
     ],
   maxRetries: parseInt(process.env.MAX_RETRIES, 10) || 3,
