@@ -421,9 +421,6 @@ export class PricesService {
     };
   }
 
-  /**
-   * Invalidar todo el caché relacionado con precios
-   */
   private async clearAllPriceCache(): Promise<void> {
     try {
       const cacheKeys = ['today_prices', 'tomorrow_prices', 'dashboard_stats'];
