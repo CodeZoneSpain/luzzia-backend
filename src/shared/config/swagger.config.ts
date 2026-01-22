@@ -33,7 +33,7 @@ export class SwaggerConfigService {
       .addBearerAuth() // Soporte para autenticación Bearer si se necesita en el futuro
       .addServer('http://localhost:4000', 'Desarrollo')
       .addServer(
-        'https://luzzia-backend-production.up.railway.app',
+        'http://luzzia-backend-ln4ovs-d31cc5-72-60-190-171.traefik.me',
         'Producción',
       ) // Ajustar según tu dominio
       .build();
